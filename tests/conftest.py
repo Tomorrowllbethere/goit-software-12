@@ -1,3 +1,4 @@
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -7,9 +8,17 @@ from main import app
 from str.database.models import Base
 from str.database.db import get_db
 from fastapi_limiter import FastAPILimiter
-from str.conf.config import settings
+
 from redis import asyncio as aioredis
 from unittest.mock import patch
+
+import sys
+import os
+# Додавання шляху до директорії з модулем
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 

@@ -1,3 +1,4 @@
+import sys
 import uvicorn
 import redis.asyncio as redis
 from pathlib import Path
@@ -8,12 +9,14 @@ from typing import List
 from fastapi_limiter import FastAPILimiter
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import sys
+
 import str.routes.auth as auth
 import str.routes.notes as notes
 import str.routes.users as users
 from str.conf.config import settings
 from fastapi_limiter.depends import RateLimiter
+
+
 app = FastAPI()
 
 
@@ -24,9 +27,9 @@ if "pytest" not in sys.modules:
             RateLimiter(...)
         )
     )
-api_router = APIRouter(prefix="/api", dependencies=dependencies)
+# api_router = APIRouter(prefix="/api", dependencies=dependencies)
 # add your routes to `api_router`
-app.include_router(api_router)
+# app.include_router(api_router)
 app.include_router(notes.router, prefix='/api')
 app.include_router(auth.router, prefix='/api')
 app.include_router(users.router, prefix='/api')
