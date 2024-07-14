@@ -3,9 +3,10 @@ from pathlib import Path
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from fastapi_mail.errors import ConnectionErrors
 from pydantic import EmailStr
-from ..conf.config import settings
+from str.conf.config import settings
 
-from .auth import auth_service
+from str.services.auth import auth_service
+
 try:
     conf = ConnectionConfig(
         MAIL_USERNAME=settings.mail_username,
@@ -25,6 +26,17 @@ except Exception as e:
     print(e)
 
 async def send_email(email: EmailStr, username: str, host: str):
+    """
+    Send a confirmation email to the user.
+
+    :param email: The email address to send the confirmation to.
+    :type email: EmailStr
+    :param username: The username of the recipient.
+    :type username: str
+    :param host: The host URL to include in the email.
+    :type host: str
+    :raises ConnectionErrors: If there is an error connecting to the email server.
+    """
     try:
         token_verification = auth_service.create_email_token({"sub": email})
         message = MessageSchema(

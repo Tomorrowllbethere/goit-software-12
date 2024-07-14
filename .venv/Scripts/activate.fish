@@ -58,7 +58,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV 'C:\programming.study\software\software-11\.venv'
+set -gx VIRTUAL_ENV 'C:\programming.study\software\goit-software-12\.venv'
 
 # https://github.com/fish-shell/fish-shell/issues/436 altered PATH handling
 if test (echo $FISH_VERSION | head -c 1) -lt 3
@@ -70,8 +70,8 @@ set -gx PATH "$VIRTUAL_ENV"'/Scripts' $PATH
 
 # Prompt override provided?
 # If not, just use the environment name.
-if test -n 'software-11-py3.12'
-    set -gx VIRTUAL_ENV_PROMPT 'software-11-py3.12'
+if test -n 'software-12-py3.12'
+    set -gx VIRTUAL_ENV_PROMPT 'software-12-py3.12'
 else
     set -gx VIRTUAL_ENV_PROMPT (basename "$VIRTUAL_ENV")
 end

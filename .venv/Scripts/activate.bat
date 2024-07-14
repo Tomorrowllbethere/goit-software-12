@@ -1,6 +1,6 @@
-@set "VIRTUAL_ENV=C:\programming.study\software\software-11\.venv"
+@set "VIRTUAL_ENV=C:\programming.study\software\goit-software-12\.venv"
 
-@set "VIRTUAL_ENV_PROMPT=software-11-py3.12"
+@set "VIRTUAL_ENV_PROMPT=software-12-py3.12"
 @if NOT DEFINED VIRTUAL_ENV_PROMPT (
     @for %%d in ("%VIRTUAL_ENV%") do @set "VIRTUAL_ENV_PROMPT=%%~nxd"
 )

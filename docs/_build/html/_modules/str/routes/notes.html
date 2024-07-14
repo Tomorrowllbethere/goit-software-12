@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>str.routes.notes &#8212; RestApi  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=12dfc556" />
+    <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for str.routes.notes</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">status</span>
+<span class="kn">from</span> <span class="nn">fastapi_limiter.depends</span> <span class="kn">import</span> <span class="n">RateLimiter</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">Session</span>
+<span class="kn">from</span> <span class="nn">str.database.models</span> <span class="kn">import</span> <span class="n">User</span>
+<span class="kn">from</span> <span class="nn">str.database.db</span> <span class="kn">import</span> <span class="n">get_db</span>
+<span class="kn">from</span> <span class="nn">str.schemas</span> <span class="kn">import</span> <span class="n">ContactModel</span><span class="p">,</span> <span class="n">ContactResponse</span>
+<span class="kn">from</span> <span class="nn">str.services.auth</span> <span class="kn">import</span> <span class="n">auth_service</span>
+<span class="kn">import</span> <span class="nn">str.repository.notes</span> <span class="k">as</span> <span class="nn">repository_notes</span>
+
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;/contacts&#39;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="find_contacts">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.find_contacts">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/search&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="o">|</span><span class="n">List</span><span class="p">[</span><span class="n">ContactResponse</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;No more than 10 requests per minute&#39;</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">find_contacts</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>  <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function searches for contacts that match the given query (name or surname)</span>
+<span class="sd">    for the current authenticated user.</span>
+<span class="sd">    </span>
+<span class="sd">    :param query: The query string to search for in contact names or surnames.</span>
+<span class="sd">    :type query: str.</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session.</span>
+<span class="sd">    :param current_user: The current authenticated user dependency. </span>
+<span class="sd">    :type current_user: User.</span>
+<span class="sd">    :return: The contact that match the query.</span>
+<span class="sd">    :rtype: Contact.</span>
+<span class="sd">    :raises HTTPException: If no contacts are found that match the query, raises a 404 HTTP exception.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contacts</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">find_name</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span>  <span class="n">contacts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contacts</span></div>
+
+
+<div class="viewcode-block" id="find_contacts_for_email">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.find_contacts_for_email">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/email&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="o">|</span><span class="n">List</span><span class="p">[</span><span class="n">ContactResponse</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;No more than 10 requests per minute&#39;</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">find_contacts_for_email</span><span class="p">(</span><span class="n">contact_email</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span>  <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve contact by email.</span>
+
+<span class="sd">    :param contact_email: The email to search for.</span>
+<span class="sd">    :type contact_email: str</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User</span>
+<span class="sd">    :return: The contact found with the given email.</span>
+<span class="sd">    :rtype: ContactResponse</span>
+<span class="sd">    :raises HTTPException: If no contacts are found with the given email.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contacts</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">find_email</span><span class="p">(</span><span class="n">contact_email</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span>  <span class="n">contacts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contacts</span></div>
+
+
+<div class="viewcode-block" id="upcoming_birthdays_contacts">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.upcoming_birthdays_contacts">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/upcoming&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="o">|</span><span class="n">List</span><span class="p">[</span><span class="n">ContactResponse</span><span class="p">])</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">upcoming_birthdays_contacts</span><span class="p">(</span><span class="n">skip</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve contacts with upcoming birthdays.</span>
+
+<span class="sd">    :param skip: The number of records to skip.</span>
+<span class="sd">    :type skip: int, optional</span>
+<span class="sd">    :param limit: The maximum number of records to return.</span>
+<span class="sd">    :type limit: int, optional</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User</span>
+<span class="sd">    :return: The contacts upcoming birthdays found.</span>
+<span class="sd">    :rtype: [List[ContactResponse]</span>
+<span class="sd">    :raises HTTPException: If no contacts are found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contacts</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">get_upcoming_birthdays</span><span class="p">(</span><span class="n">skip</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span>  <span class="n">contacts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contacts</span></div>
+
+
+<div class="viewcode-block" id="read_contacts">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.read_contacts">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">List</span><span class="p">[</span><span class="n">ContactResponse</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;No more than 10 requests per minute&#39;</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">read_contacts</span><span class="p">(</span><span class="n">skip</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve a list of contacts.</span>
+
+<span class="sd">    :param skip: The number of records to skip.</span>
+<span class="sd">    :type skip: int, optional</span>
+<span class="sd">    :param limit: The maximum number of records to return.</span>
+<span class="sd">    :type limit: int, optional</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session, optional</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User, optional</span>
+<span class="sd">    :return: A list of contacts.</span>
+<span class="sd">    :rtype: List[ContactResponse]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contacts</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">get_contacts</span><span class="p">(</span><span class="n">skip</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contacts</span></div>
+
+
+<div class="viewcode-block" id="read_contact">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.read_contact">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/</span><span class="si">{contact_id}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">read_contact</span><span class="p">(</span><span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve a specific contact by ID.</span>
+
+<span class="sd">    :param contact_id: The ID of the contact to retrieve.</span>
+<span class="sd">    :type contact_id: int</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session, optional</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User, optional</span>
+<span class="sd">    :return: The contact found with the given ID.</span>
+<span class="sd">    :rtype: ContactResponse</span>
+<span class="sd">    :raises HTTPException: If no contact is found with the given ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contact</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">get_contact</span><span class="p">(</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span>  <span class="n">contact</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contact</span></div>
+
+
+
+<div class="viewcode-block" id="create_contact">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.create_contact">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_201_CREATED</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;No more than 3 requests per minute&#39;</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">))]</span> <span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">create_contact</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">ContactModel</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new contact.</span>
+
+<span class="sd">    :param body: The contact data to create.</span>
+<span class="sd">    :type body: ContactModel</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session, optional</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User, optional</span>
+<span class="sd">    :return: The created contact.</span>
+<span class="sd">    :rtype: ContactResponse</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">create_contact</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span><span class="n">db</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="update_contact">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.update_contact">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/</span><span class="si">{contact_id}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;No more than 10 requests per minute&#39;</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">update_contact</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">ContactModel</span><span class="p">,</span> <span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update an existing contact.</span>
+
+<span class="sd">    :param body: The contact data to update.</span>
+<span class="sd">    :type body: ContactModel</span>
+<span class="sd">    :param contact_id: The ID of the contact to update.</span>
+<span class="sd">    :type contact_id: int</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session, optional</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User, optional</span>
+<span class="sd">    :return: The updated contact.</span>
+<span class="sd">    :rtype: ContactResponse</span>
+<span class="sd">    :raises HTTPException: If no contact is found with the given ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contact</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">update_contact</span><span class="p">(</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">contact</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contact</span></div>
+
+
+<div class="viewcode-block" id="remove_contact">
+<a class="viewcode-back" href="../../../index.html#str.routes.notes.remove_contact">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/</span><span class="si">{contact_id}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">ContactResponse</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">remove_contact</span><span class="p">(</span><span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span> <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Delete a contact.</span>
+
+<span class="sd">    :param contact_id: The ID of the contact to delete.</span>
+<span class="sd">    :type contact_id: int</span>
+<span class="sd">    :param db: The database session dependency.</span>
+<span class="sd">    :type db: Session, optional</span>
+<span class="sd">    :param current_user: The current authenticated user dependency.</span>
+<span class="sd">    :type current_user: User, optional</span>
+<span class="sd">    :return: The deleted contact.</span>
+<span class="sd">    :rtype: ContactResponse</span>
+<span class="sd">    :raises HTTPException: If no contact is found with the given ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contact</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_notes</span><span class="o">.</span><span class="n">remove_contact</span><span class="p">(</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">contact</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Contact not found&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">contact</span></div>
+
+
+
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">RestApi</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, SlyserinFantom.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

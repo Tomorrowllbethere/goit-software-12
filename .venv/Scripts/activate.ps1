@@ -37,8 +37,8 @@ deactivate -nondestructive
 $VIRTUAL_ENV = $BASE_DIR
 $env:VIRTUAL_ENV = $VIRTUAL_ENV
 
-if ("software-11-py3.12" -ne "") {
-    $env:VIRTUAL_ENV_PROMPT = "software-11-py3.12"
+if ("software-12-py3.12" -ne "") {
+    $env:VIRTUAL_ENV_PROMPT = "software-12-py3.12"
 }
 else {
     $env:VIRTUAL_ENV_PROMPT = $( Split-Path $env:VIRTUAL_ENV -Leaf )

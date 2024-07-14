@@ -32,7 +32,7 @@ export-env {
       }
     }
 
-    let virtual_env = 'C:\programming.study\software\software-11\.venv'
+    let virtual_env = 'C:\programming.study\software\goit-software-12\.venv'
     let bin = 'Scripts'
 
     let is_windows = ($nu.os-info.family) == 'windows'
@@ -47,10 +47,10 @@ export-env {
     let new_path = ($env | get $path_name | prepend $venv_path)
 
     # If there is no default prompt, then use the env name instead
-    let virtual_env_prompt = (if ('software-11-py3.12' | is-empty) {
+    let virtual_env_prompt = (if ('software-12-py3.12' | is-empty) {
         ($virtual_env | path basename)
     } else {
-        'software-11-py3.12'
+        'software-12-py3.12'
     })
 
     let new_env = {
